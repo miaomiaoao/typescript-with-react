@@ -2,15 +2,17 @@ import React from 'react'
 import { cleanup, fireEvent, render, RenderResult } from '@testing-library/react'
 import Menu, { MenuProps } from './menu'
 import MenuItem from './menuItem'
+import SubMenu from './subMenu'
+import { wait } from '@testing-library/user-event/dist/utils'
 
 const testProps: MenuProps = {
-  defaultIndex: 0,
+  defaultIndex: '0',
   onSelect: jest.fn(),
   className: 'test'
 }
 
 const testVerProps: MenuProps = {
-  defaultIndex: 0,
+  defaultIndex: '0',
   mode: 'vertical'
 }
 
@@ -26,9 +28,27 @@ const generateMenu = (props: MenuProps) => {
       <MenuItem>active</MenuItem>
       <MenuItem disabled>disabled</MenuItem>
       <MenuItem>xyz</MenuItem>
-      <li></li>
+
+      {/* <li></li> */}
+      <SubMenu title="dropdown">
+        <MenuItem>drop1</MenuItem>
+      </SubMenu>
     </Menu>
   )
+}
+const createStyleFile = () => {
+  const cssFile: string = `
+  .viking-submenu {
+    display: none;
+  }
+  .viking-submenu.menu-opened {
+    display: block;
+  }
+  `
+  const style = document.createElement('style')
+  style.type = 'text/css'
+  style.innerHTML = cssFile
+  return style
 }
 
 let wrapper: RenderResult, menuElement: HTMLElement, activeElement: HTMLElement, disabledElement: HTMLElement
@@ -37,6 +57,7 @@ describe('test Menu and MenuItem component', () => {
   // 这个函数在每个case开始前都会执行
   beforeEach(() => {
     wrapper = render(generateMenu(testProps))
+    wrapper.container.append(createStyleFile())
     menuElement = wrapper.getByTestId('test-menu')
     activeElement = wrapper.getByText('active')
     disabledElement = wrapper.getByText('disabled')
@@ -47,6 +68,7 @@ describe('test Menu and MenuItem component', () => {
     expect(menuElement).toHaveClass('xuxu-menu test')
     // 希望渲染的menuItem数是3个
     expect(menuElement.getElementsByTagName('li').length).toEqual(3)
+    expect(menuElement.querySelectorAll(':scope > li').length).toEqual(4)
     expect(activeElement).toHaveClass('menu-item is-active')
     expect(disabledElement).toHaveClass('menu-item is-disabled')
   })
@@ -56,10 +78,10 @@ describe('test Menu and MenuItem component', () => {
     fireEvent.click(thirdItem)
     expect(thirdItem).toHaveClass('is-active')
     expect(activeElement).not.toHaveClass('is-active')
-    expect(testProps.onSelect).toHaveBeenCalledWith(2)
+    expect(testProps.onSelect).toHaveBeenCalledWith('2')
     fireEvent.click(disabledElement)
     expect(disabledElement).not.toHaveClass('is-active')
-    expect(testProps.onSelect).not.toHaveBeenCalledWith(1)
+    expect(testProps.onSelect).not.toHaveBeenCalledWith('1')
   })
   // 当mode等于vertical时，能否正确渲染出vertical形式的组件
   it('should render vertical mode when mode is set to vertical', () => {
@@ -68,5 +90,16 @@ describe('test Menu and MenuItem component', () => {
     const wrapper = render(generateMenu(testVerProps))
     const menuElement = wrapper.getByTestId('test-menu')
     expect(menuElement).toHaveClass('menu-vertical')
+  })
+  it('should show dropdown items when hover on subMenu', async () => {
+    // 不出现
+    expect(wrapper.queryByText('drop1')).not.toBeVisible()
+    const dropdownElement = wrapper.getByText('dropdown')
+    fireEvent.mouseEnter(dropdownElement)
+    // await wait(() => {
+    //   expect(wrapper.queryByText('drop1')).toBeVisible()
+    // })
+    fireEvent.click(wrapper.getByText('drop1'))
+    expect(testProps.onSelect).toHaveBeenCalledWith('3-0')
   })
 })
